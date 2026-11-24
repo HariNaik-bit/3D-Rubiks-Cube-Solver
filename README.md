@@ -15,6 +15,15 @@ Cube Lab is a browser-based 3×3 Rubik’s Cube solver built with React, Three.j
 
 ![Cube Lab showing a completed solution](preview.jpg)
 
+## Solve a physical cube
+
+1. Open **Solve My Physical Cube**. Start with the white center on top and the green center in front.
+2. Use **Camera** on a supported phone or **Gallery** to pick a photo for each of the six faces. Face the camera squarely, center the face, and follow the guide for which neighboring center goes above it.
+3. Review the detected stickers in the cube net. Select a paint color to correct a sticker or use **Rotate** to fix a sideways capture. If needed, enter all the stickers by hand.
+4. Select **Load and solve cube**. Follow the move notation and turn direction, or use the animated playback. **Restart** restores the position at the start of the solution.
+
+Photos are processed in your browser. The Java API receives only the 54 facelet labels. The scanner is designed for the conventional six-color layout and straight-on photos taken in even light.
+
 ## Architecture and stack
 
 ```mermaid

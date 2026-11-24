@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Cube3D from './components/Cube3D.jsx';
 import Controls from './components/Controls.jsx';
 import SolutionSteps from './components/SolutionSteps.jsx';
+import PhysicalCube from './components/PhysicalCube.jsx';
 import { applyMove, inverse, scramble, solved } from './cube.js';
+import './physicalCube.css';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') || '';
 
@@ -13,12 +15,14 @@ export default function App() {
   const [viewReset, setViewReset] = useState(0);
   const [scrambleMoves, setScrambleMoves] = useState([]);
   const [solution, setSolution] = useState([]);
+  const [solutionOrigin, setSolutionOrigin] = useState(null);
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [solving, setSolving] = useState(false);
   const [error, setError] = useState('');
   const request = useRef(null);
+  const workspace = useRef(null);
   const busy = solving || Boolean(animation);
 
   useEffect(() => () => request.current?.abort(), []);
@@ -47,6 +51,7 @@ export default function App() {
 
   function clearSolution() {
     setSolution([]);
+    setSolutionOrigin(null);
     setStep(0);
     setPlaying(false);
     setError('');
@@ -76,7 +81,7 @@ export default function App() {
     startTurn(move);
   }
 
-  async function solve() {
+  async function solve(state = facelets) {
     clearSolution();
     const controller = new AbortController();
     request.current = controller;
@@ -87,16 +92,19 @@ export default function App() {
         method: 'POST',
         credentials: 'omit',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ facelets }),
+        body: JSON.stringify({ facelets: state }),
         signal: controller.signal
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.detail || 'The solver is unavailable. Try again.');
       if (!Array.isArray(data?.moves) || !data.moves.every(move => typeof move === 'string' && /^[URFDLB](?:2|')?$/.test(move))
-        || data.moves.reduce(applyMove, facelets) !== solved) {
+        || data.moves.reduce(applyMove, state) !== solved) {
         throw new Error('The solver returned an invalid move sequence.');
       }
-      if (request.current === controller) setSolution(data.moves);
+      if (request.current === controller) {
+        setSolution(data.moves);
+        setSolutionOrigin(state);
+      }
     } catch (failure) {
       if (request.current === controller) {
         const message = controller.signal.reason?.name === 'TimeoutError' ? 'The solver took too long. Try again.' : failure.message;
@@ -109,6 +117,22 @@ export default function App() {
         setSolving(false);
       }
     }
+  }
+
+  function loadPhysicalCube(state) {
+    setFacelets(state);
+    setCount(0);
+    setScrambleMoves([]);
+    workspace.current?.focus();
+    solve(state);
+  }
+
+  function restartSolution() {
+    setPlaying(false);
+    setAnimation(null);
+    setFacelets(solutionOrigin);
+    setStep(0);
+    setCount(0);
   }
 
   function stepBy(delta) {
@@ -128,7 +152,8 @@ export default function App() {
         <h1>Rubik’s Cube Solver</h1>
         <p className="muted">Scramble the cube, then watch the solution unfold one move at a time.</p>
       </div>
-      <div className="workspace">
+      <PhysicalCube busy={busy || playing} onLoad={loadPhysicalCube} />
+      <div className="workspace" ref={workspace} tabIndex={-1} aria-label="Cube and solution">
         <section className="panel viewport" aria-label="Cube workspace">
           <header className="split viewport-header">
             <div className={'status ' + (facelets === solved ? 'solved' : '')} role="status">
@@ -145,7 +170,7 @@ export default function App() {
           </div>
           <div className="actions">
             <button onClick={shuffle} disabled={busy || playing}>Scramble</button>
-            <button className="primary" onClick={solve} disabled={busy || playing || facelets === solved}>{solving ? 'Solving…' : 'Solve'}</button>
+            <button className="primary" onClick={() => solve()} disabled={busy || playing || facelets === solved}>{solving ? 'Solving…' : 'Solve'}</button>
             <button onClick={reset}>Reset cube</button>
           </div>
           {error && <p className="error" role="alert">{error}</p>}
@@ -154,7 +179,8 @@ export default function App() {
         <aside>
           <Controls disabled={busy || playing} onMove={manualMove} />
           <SolutionSteps moves={solution} step={step} playing={playing} busy={busy} speed={speed}
-            setSpeed={setSpeed} stepBy={stepBy} setPlaying={setPlaying} />
+            setSpeed={setSpeed} stepBy={stepBy} setPlaying={setPlaying} restart={restartSolution}
+            alreadySolved={solutionOrigin === solved} />
         </aside>
       </div>
     </main>
