@@ -37,6 +37,22 @@ test('detects a nine-sticker image grid and classifies stickers under changed ex
   assert.ok(analyzeGrid({ data: new Uint8ClampedArray(90 * 90 * 4), width: 90, height: 90 }).warnings.length >= 2);
 });
 
+test('warm sticker hue separates dark orange from bright red', () => {
+  const calibration = calibrate({});
+  assert.deepEqual(classifySticker(rgbToLab([111, 53, 13]), calibration), { color: 'L', uncertain: false });
+  assert.deepEqual(classifySticker(rgbToLab([255, 90, 95]), calibration), { color: 'R', uncertain: false });
+  assert.equal(classifySticker(rgbToLab([245, 112, 73]), calibration).uncertain, true);
+});
+
+test('swapped warm centers trigger a warning and mark warm classifications uncertain', () => {
+  const scans = {
+    R: { samples: Array(9).fill(rgbToLab(palette.L)) },
+    L: { samples: Array(9).fill(rgbToLab(palette.R)) }
+  };
+  assert.match(centerWarning(scans, 'R'), /too similar or swapped/);
+  assert.deepEqual(classifySticker(rgbToLab(palette.L), calibrate(scans)), { color: 'L', uncertain: true });
+});
+
 test('face rotation reorders rows and recovers a misoriented capture', () => {
   assert.deepEqual(rotateFace([1, 2, 3, 4, 5, 6, 7, 8, 9]), [7, 4, 1, 8, 5, 2, 9, 6, 3]);
   assert.deepEqual(topNeighbor, { U: 'B', R: 'U', F: 'U', D: 'F', L: 'U', B: 'U' });

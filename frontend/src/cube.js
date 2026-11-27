@@ -1,5 +1,5 @@
 export const faces = 'URFDLB';
-export const colors = { U: '#f7f7ee', R: '#fa554f', F: '#26cf8b', D: '#ffdb54', L: '#ff983e', B: '#5287ff' };
+export const colors = { U: '#f7f7ee', R: '#e82d43', F: '#26cf8b', D: '#ffdb54', L: '#ffa326', B: '#5287ff' };
 const frames = {
   U: [[0, 1, 0], [1, 0, 0], [0, 0, 1]],
   R: [[1, 0, 0], [0, 0, -1], [0, -1, 0]],

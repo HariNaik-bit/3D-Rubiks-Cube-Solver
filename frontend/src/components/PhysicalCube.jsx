@@ -121,7 +121,7 @@ export default function PhysicalCube({ busy, onLoad }) {
               disabled={index === 4} className={uncertain ? 'uncertain' : ''}
               style={{ backgroundColor: colors[color] }}
               aria-label={faceNames[face] + ' sticker ' + (index + 1) + ', ' + (colorNames[color] || 'empty') + (uncertain ? ', uncertain' : '')}
-              onClick={() => setSticker(face, index)}>{index === 4 ? face : color ? '' : '·'}</button>)}
+              onClick={() => setSticker(face, index)}>{color === 'R' ? 'R' : color === 'L' ? 'O' : index === 4 ? face : color ? '' : '·'}</button>)}
           </div>
           <button type="button" className="rotate-layout" aria-label={'Rotate ' + faceNames[face] + ' layout clockwise'}
             onClick={() => rotate(face)}>↻ <span>Rotate</span></button>

@@ -16,6 +16,11 @@ export function rgbToLab(rgb) {
 
 // Weight chromaticity over brightness to tolerate exposure changes between photos.
 export const colorDistance = (a, b) => Math.hypot((a[0] - b[0]) * 0.55, a[1] - b[1], a[2] - b[2]);
+const hue = ([, a, b]) => Math.atan2(b, a) * 180 / Math.PI;
+const chroma = ([, a, b]) => Math.hypot(a, b);
+const hueDistance = (a, b) => Math.abs(((hue(a) - hue(b) + 540) % 360) - 180);
+const warmColors = new Set(['R', 'L']);
+const minimumWarmSeparation = 12;
 const references = Object.fromEntries([
   [242, 242, 239], [202, 27, 38], [20, 154, 78],
   [243, 220, 34], [246, 123, 24], [28, 98, 220]
@@ -29,6 +34,21 @@ export function classifySticker(sample, calibration) {
   const candidates = [...faces].map(face => ({ face, distance: colorDistance(sample, calibration[face]) }));
   candidates.sort((a, b) => a.distance - b.distance);
   const [best, next] = candidates;
+  if (warmColors.has(best.face) && warmColors.has(next.face)) {
+    const red = calibration.R;
+    const orange = calibration.L;
+    const reliableCenters = chroma(red) >= 20 && chroma(orange) >= 20 &&
+      hue(orange) - hue(red) >= minimumWarmSeparation;
+    const redDistance = hueDistance(sample, reliableCenters ? red : references.R);
+    const orangeDistance = hueDistance(sample, reliableCenters ? orange : references.L);
+    const color = redDistance <= orangeDistance ? 'R' : 'L';
+    return {
+      color,
+      uncertain: !reliableCenters || chroma(sample) < 20 ||
+        Math.abs(redDistance - orangeDistance) < 8 ||
+        Math.min(redDistance, orangeDistance) > 20
+    };
+  }
   return { color: best.face, uncertain: best.distance > 27 || next.distance - best.distance < 8 };
 }
 
@@ -38,6 +58,10 @@ export function centerWarning(scans, face) {
   const duplicate = [...faces].find(other => other !== face && scans[other] &&
     colorDistance(sample, scans[other].samples[4]) < 11);
   if (duplicate) return 'Two photos have very similar center colors. Check for a duplicate face or poor lighting.';
+  if (warmColors.has(face) && scans.R && scans.L &&
+      hue(scans.L.samples[4]) - hue(scans.R.samples[4]) < minimumWarmSeparation) {
+    return 'Red and orange centers are too similar or swapped. Check the slots, retake both photos under the same light, or correct the marked stickers.';
+  }
   const match = classifySticker(sample, references);
   if (match.color !== face && !match.uncertain) return 'The center may belong to a different slot. Check the face and lighting.';
   return '';
